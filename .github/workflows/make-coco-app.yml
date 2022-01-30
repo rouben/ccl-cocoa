@@ -1,0 +1,23 @@
+name: Make CCL Cocoa App
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Get CCL source code and bootstrap
+      run: git clone https://github.com/Clozure/ccl.git ccl-dev && cd ccl-dev && wget https://github.com/Clozure/ccl/releases/latest/download/darwinx86.tar.gz && tar xvf darwinx86.tar.gz
+      
+    - name: Build Clozure CCL Cocoa App
+      run: cd ccl-dev && ./dx86cl64 --eval '(REQUIRE "COCOA-APPLICATION")' 
+     
+    - name: Upload Cocoa App
+      uses: actions/upload-artifact@v2
+      with:
+        name: Clozure CL64 App
+        path: 'ccl-dev/Clozure CL64.app'
