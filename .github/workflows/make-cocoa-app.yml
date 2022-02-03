@@ -1,0 +1,51 @@
+name: Make CCL Cocoa App
+
+#on:
+#  push:
+#    branches: [ main ]
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Specify release tag to build from https://github.com/Clozure/ccl/releases/ repo. Omit the v!!!'
+        required: true
+#        default: latest
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-12, macos-10.15]
+
+    steps:
+    - name: Get CCL source code and bootstrap
+      run: |
+        wget "https://github.com/Clozure/ccl/archive/refs/tags/v${{ github.event.inputs.release }}.tar.gz"
+        tar xfz "v${{ github.event.inputs.release }}.tar.gz"
+        cd "ccl-${{ github.event.inputs.release }}/lisp-kernel/darwinx8664"
+        make clean
+        make
+#        wget "https://github.com/Clozure/ccl/releases/download/v${{ github.event.inputs.release }}/ccl-${{ github.event.inputs.release }}-darwinx86.tar.gz"
+#        tar xfz "ccl-${{ github.event.inputs.release }}-darwinx86.tar.gz"
+#git clone https://github.com/Clozure/ccl.git ccl-dev && cd ccl-dev && wget https://github.com/Clozure/ccl/releases/latest/download/darwinx86.tar.gz && tar xvf darwinx86.tar.gz
+      
+    - name: Build Clozure CCL Cocoa App
+      run: |
+        cd "ccl-${{ github.event.inputs.release }}"
+        ./dx86cl64 --eval '(REQUIRE "COCOA-APPLICATION")'
+#cd ccl-dev && ./dx86cl64 --eval '(REQUIRE "COCOA-APPLICATION")'
+
+    - name: Package CCL app
+      run: |
+        mkdir ccl-app
+        mv "ccl-${{ github.event.inputs.release }}/Clozure CL64.app" ccl-app/
+        hdiutil create -srcfolder ccl-app/ -volname 'Clozure CL64' -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
+#mkdir ccl-app && mv 'ccl-dev/Clozure CL64.app' ccl-app/ && hdiutil create -srcfolder ccl-app/ -volname 'Clozure CL64' -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
+     
+    - name: Upload CCL App
+      uses: actions/upload-artifact@v2
+      with:
+        name: Clozure CL64 App
+        path: "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
