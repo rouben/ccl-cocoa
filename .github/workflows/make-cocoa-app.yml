@@ -6,7 +6,6 @@ on:
       release:
         description: 'Specify release tag to build from https://github.com/Clozure/ccl/releases/ repo. Omit the v!!!'
         required: true
-#        default: latest
 
 jobs:
   build:
@@ -36,8 +35,12 @@ jobs:
         mv "ccl-${{ github.event.inputs.release }}/Clozure CL64.app" ccl-app/
         hdiutil create -srcfolder ccl-app/ -volname 'Clozure CL64' -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
      
-    - name: Upload CCL App
-      uses: actions/upload-artifact@v2
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
       with:
-        name: Clozure CL64 App
-        path: "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        file: "Clozure CL64 ${{ github.event.inputs.release }}-${{ matrix.os }}.dmg"
+        asset_name: "Clozure CL64 App v${{ github.event.inputs.release }} for ${{ matrix.os }}.dmg"
+        tag: "v${{ github.event.inputs.release }}"
+        overwrite: true
+
