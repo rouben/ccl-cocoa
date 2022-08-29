@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-11, macos-10.15]
+        os: [macos-12, macos-11, macos-10.15]
 
     steps:
     - name: Get CCL source code and bootstrap
