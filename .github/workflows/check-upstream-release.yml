@@ -1,0 +1,48 @@
+name: Check for Upstream CCL Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  check-and-trigger:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # needed to check existing releases
+      actions: write   # needed to dispatch make-cocoa-app workflow
+
+    steps:
+    - name: Get latest upstream CCL release
+      id: upstream
+      run: |
+        LATEST=$(curl -sf https://api.github.com/repos/Clozure/ccl/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+          echo "Failed to fetch latest upstream release version" >&2
+          exit 1
+        fi
+        echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+
+    - name: Check if release already exists in this repo
+      id: check
+      run: |
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ steps.upstream.outputs.version }}")
+        if [ "$STATUS" = "200" ]; then
+          echo "already_built=true" >> "$GITHUB_OUTPUT"
+        elif [ "$STATUS" = "404" ]; then
+          echo "already_built=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "Unexpected HTTP status $STATUS when checking release — aborting to avoid duplicate builds" >&2
+          exit 1
+        fi
+
+    - name: Trigger build for new upstream release
+      if: steps.check.outputs.already_built == 'false'
+      run: |
+        curl -sf -X POST \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/make-cocoa-app.yml/dispatches" \
+          -d "{\"ref\":\"${{ github.ref_name }}\",\"inputs\":{\"release\":\"${{ steps.upstream.outputs.version }}\"}}"
